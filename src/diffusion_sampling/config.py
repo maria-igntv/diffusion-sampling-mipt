@@ -3,6 +3,9 @@
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 import json
+import math
+
+from .schedules import CUSTOM_SAMPLERS, expected_nfe
 
 
 @dataclass(frozen=True)
@@ -23,6 +26,9 @@ class RunConfig:
     clip_sample: bool = True
     warmup_batches: int = 1
     cpu_threads: int = 4
+    schedule: str = "native"
+    timesteps: list[int] | None = None
+    rho: float = 7.0
 
     def __post_init__(self):
         for name in ("num_steps", "num_samples", "batch_size", "cpu_threads"):
@@ -41,8 +47,29 @@ class RunConfig:
             raise ValueError("This baseline currently supports google/ddpm-cifar10-32 only")
         if not self.revision or self.revision == "main":
             raise ValueError("Pin an immutable checkpoint revision, not main")
-        if self.sampler != "diffusers_ddim":
-            raise ValueError("Only the verified Diffusers DDIM baseline is implemented yet")
+        if self.sampler not in {"diffusers_ddim", *CUSTOM_SAMPLERS}:
+            raise ValueError("sampler must be diffusers_ddim, ddim, dpmpp_2m or heun")
+        if self.schedule not in {"native", "uniform_t", "log_sigma", "karras", "custom"}:
+            raise ValueError("Unknown noise schedule")
+        if self.sampler == "diffusers_ddim" and self.schedule != "native":
+            raise ValueError("The original Diffusers baseline only supports its native schedule")
+        if self.sampler == "diffusers_ddim" and self.timestep_spacing != "leading":
+            raise ValueError("The verified native DDIM reference uses leading spacing")
+        if self.sampler in {"dpmpp_2m", "heun"} and self.schedule == "native":
+            raise ValueError("Select a common schedule: uniform_t, log_sigma, karras or custom")
+        if self.sampler == "ddim" and self.schedule == "native" and self.timestep_spacing != "leading":
+            raise ValueError("Native custom DDIM supports leading spacing only; use a common schedule otherwise")
+        if self.sampler in CUSTOM_SAMPLERS and self.dtype != "float32":
+            raise ValueError("Custom samplers currently require float32 for verified numerical behavior")
+        if type(self.rho) not in (int, float) or not math.isfinite(self.rho) or self.rho <= 0:
+            raise ValueError("rho must be finite and positive")
+        if self.schedule == "custom":
+            from .schedules import validate_timesteps
+            if not isinstance(self.timesteps, list):
+                raise ValueError("Custom schedule requires an explicit timesteps list")
+            validate_timesteps(self.timesteps, self.num_steps, 1000)
+        elif self.timesteps is not None:
+            raise ValueError("timesteps may only be supplied for schedule=custom")
         if self.device not in {"auto", "cpu", "cuda", "mps"}:
             raise ValueError("device must be auto, cpu, cuda or mps")
         if self.dtype not in {"float32", "float16"}:
@@ -59,6 +86,10 @@ class RunConfig:
 
     def to_dict(self):
         return asdict(self)
+
+    @property
+    def expected_nfe(self):
+        return expected_nfe(self.sampler, self.num_steps)
 
 
 def load_config(path):

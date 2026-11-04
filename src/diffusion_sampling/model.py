@@ -1,4 +1,4 @@
-"""Load only the frozen denoiser and the matching DDIM scheduler."""
+"""Load the frozen denoiser and its training coefficients, plus an explicit sampling plan."""
 
 from pathlib import Path
 import json
@@ -8,6 +8,7 @@ from huggingface_hub import snapshot_download
 import torch
 
 from .storage import file_sha256
+from .schedules import make_plan
 
 
 def load_model(config, root, device, local_files_only=False):
@@ -39,5 +40,6 @@ def load_model(config, root, device, local_files_only=False):
         "training_timesteps": scheduler.config.num_train_timesteps,
         "scheduler": json.loads(scheduler.to_json_string()),
         "weights_sha256": file_sha256(snapshot / "diffusion_pytorch_model.safetensors"),
+        "sampling_plan": make_plan(config, scheduler).to_dict(),
     }
     return model, scheduler, contract

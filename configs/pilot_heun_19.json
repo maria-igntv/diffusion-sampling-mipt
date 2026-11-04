@@ -1,0 +1,13 @@
+{
+  "sampler": "heun",
+  "schedule": "uniform_t",
+  "num_steps": 10,
+  "num_samples": 16,
+  "batch_size": 8,
+  "clip_sample": false,
+  "noise_seed": 10000,
+  "noise_path": "data/noise/debug.pt",
+  "output_dir": "results/sampler_pilots/heun_uniform_t_nfe19",
+  "purpose": "pilot",
+  "device": "auto"
+}

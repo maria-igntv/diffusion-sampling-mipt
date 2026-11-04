@@ -1,0 +1,225 @@
+{
+  "kind": "LOCAL_MPS_PILOT_NOT_FID",
+  "date": "2026-11-05",
+  "comparison": {
+    "schema_version": 1,
+    "kind": "matched_conditions_comparison",
+    "contract": {
+      "model_id": "google/ddpm-cifar10-32",
+      "revision": "267b167dc01f0e4e61923ea244e8b988f84deb80",
+      "weights_sha256": "1558dbe3fb093b0857d473e376b711eeda1b186c557be5e85b3a56300cd49f0f",
+      "prediction_type": "epsilon",
+      "noise_sha256": "19e75aea95a9ec37ccda7b34b5cce98e7fbd572a0c95295cb160e87fb16a48e3",
+      "num_samples": 16,
+      "clip_sample": false,
+      "dtype": "float32",
+      "denoiser_policy": "unclipped",
+      "start_timestep": 999,
+      "last_query_timestep": 0,
+      "terminal_sigma": 0.0,
+      "initialization": "x_vp=z; y_ve=sqrt(1+sigma_start**2)*z; same saved z for all methods"
+    },
+    "environment": {
+      "python": "3.13.5",
+      "platform": "macOS-26.7.1-arm64-arm-64bit-Mach-O",
+      "device": "mps",
+      "device_name": "arm64",
+      "cuda_runtime": null,
+      "packages": {
+        "torch": "2.11.0",
+        "torchvision": "0.26.0",
+        "diffusers": "0.35.2",
+        "huggingface-hub": "2.4.0",
+        "torch-fidelity": "0.3.0",
+        "numpy": "2.4.0",
+        "Pillow": "12.0.0",
+        "scipy": "1.16.3"
+      },
+      "cpu_threads": 4,
+      "source_sha256": "cb9a115145eafe031689d2d469490df25631eda1ed5ccbe08d33ad0a7ea8481e"
+    },
+    "batch_size": 8,
+    "fid_protocol": null,
+    "reference": "reference_ddim_1000",
+    "budgets": [
+      19.0
+    ],
+    "rows": [
+      {
+        "run": "ddim_uniform_t_nfe19",
+        "sampler": "ddim",
+        "schedule": "uniform_t",
+        "num_images": 16,
+        "nfe": 19.0,
+        "generation_seconds": 1.497583249991294,
+        "seconds_per_image": 0.09359895312445587,
+        "fid": null,
+        "mse_to_reference": 0.00773570298042614,
+        "mse_standard_error": 0.001096291121753494
+      },
+      {
+        "run": "dpmpp_2m_uniform_t_nfe19",
+        "sampler": "dpmpp_2m",
+        "schedule": "uniform_t",
+        "num_images": 16,
+        "nfe": 19.0,
+        "generation_seconds": 1.5217239169869572,
+        "seconds_per_image": 0.09510774481168482,
+        "fid": null,
+        "mse_to_reference": 0.001712965800834354,
+        "mse_standard_error": 0.00021397052113787579
+      },
+      {
+        "run": "heun_uniform_t_nfe19",
+        "sampler": "heun",
+        "schedule": "uniform_t",
+        "num_images": 16,
+        "nfe": 19.0,
+        "generation_seconds": 1.588385750015732,
+        "seconds_per_image": 0.09927410937598324,
+        "fid": null,
+        "mse_to_reference": 0.01571917295223102,
+        "mse_standard_error": 0.0027634178907767946
+      }
+    ],
+    "interpretation": "Compare methods within each NFE group. MSE measures fidelity to a numerical reference, not distributional quality. Missing FID means quality is not yet evaluated."
+  },
+  "reference_convergence": {
+    "schema_version": 1,
+    "kind": "matched_conditions_comparison",
+    "contract": {
+      "model_id": "google/ddpm-cifar10-32",
+      "revision": "267b167dc01f0e4e61923ea244e8b988f84deb80",
+      "weights_sha256": "1558dbe3fb093b0857d473e376b711eeda1b186c557be5e85b3a56300cd49f0f",
+      "prediction_type": "epsilon",
+      "noise_sha256": "19e75aea95a9ec37ccda7b34b5cce98e7fbd572a0c95295cb160e87fb16a48e3",
+      "num_samples": 16,
+      "clip_sample": false,
+      "dtype": "float32",
+      "denoiser_policy": "unclipped",
+      "start_timestep": 999,
+      "last_query_timestep": 0,
+      "terminal_sigma": 0.0,
+      "initialization": "x_vp=z; y_ve=sqrt(1+sigma_start**2)*z; same saved z for all methods"
+    },
+    "environment": {
+      "python": "3.13.5",
+      "platform": "macOS-26.7.1-arm64-arm-64bit-Mach-O",
+      "device": "mps",
+      "device_name": "arm64",
+      "cuda_runtime": null,
+      "packages": {
+        "torch": "2.11.0",
+        "torchvision": "0.26.0",
+        "diffusers": "0.35.2",
+        "huggingface-hub": "2.4.0",
+        "torch-fidelity": "0.3.0",
+        "numpy": "2.4.0",
+        "Pillow": "12.0.0",
+        "scipy": "1.16.3"
+      },
+      "cpu_threads": 4,
+      "source_sha256": "cb9a115145eafe031689d2d469490df25631eda1ed5ccbe08d33ad0a7ea8481e"
+    },
+    "batch_size": 8,
+    "fid_protocol": null,
+    "reference": "reference_ddim_1000",
+    "budgets": [
+      500.0
+    ],
+    "rows": [
+      {
+        "run": "reference_ddim_500",
+        "sampler": "ddim",
+        "schedule": "uniform_t",
+        "num_images": 16,
+        "nfe": 500.0,
+        "generation_seconds": 40.06745620799484,
+        "seconds_per_image": 2.5042160129996773,
+        "fid": null,
+        "mse_to_reference": 5.230054895832836e-06,
+        "mse_standard_error": 1.1027716743501427e-06
+      }
+    ],
+    "interpretation": "Compare methods within each NFE group. MSE measures fidelity to a numerical reference, not distributional quality. Missing FID means quality is not yet evaluated."
+  },
+  "pretrained_parity": {
+    "kind": "PRETRAINED_SAMPLER_PARITY_CHECK",
+    "not_a_quality_benchmark": true,
+    "model_revision": "267b167dc01f0e4e61923ea244e8b988f84deb80",
+    "weights_sha256": "1558dbe3fb093b0857d473e376b711eeda1b186c557be5e85b3a56300cd49f0f",
+    "num_images": 2,
+    "environment": {
+      "python": "3.13.5",
+      "platform": "macOS-26.7.1-arm64-arm-64bit-Mach-O",
+      "device": "mps",
+      "device_name": "arm64",
+      "cuda_runtime": null,
+      "packages": {
+        "torch": "2.11.0",
+        "torchvision": "0.26.0",
+        "diffusers": "0.35.2",
+        "huggingface-hub": "2.4.0",
+        "torch-fidelity": "0.3.0",
+        "numpy": "2.4.0",
+        "Pillow": "12.0.0",
+        "scipy": "1.16.3"
+      },
+      "cpu_threads": 4,
+      "source_sha256": "cb9a115145eafe031689d2d469490df25631eda1ed5ccbe08d33ad0a7ea8481e"
+    },
+    "rows": [
+      {
+        "sampler": "ddim",
+        "schedule": "native",
+        "clip_sample": true,
+        "nfe": 20,
+        "max_step_abs_error": 0.0,
+        "max_final_abs_error": 0.0,
+        "final_mse": 0.0,
+        "passed": true
+      },
+      {
+        "sampler": "dpmpp_2m",
+        "schedule": "karras",
+        "clip_sample": false,
+        "nfe": 19,
+        "max_step_abs_error": 2.1383166313171387e-06,
+        "max_final_abs_error": 2.130866050720215e-06,
+        "final_mse": 8.199459855659161e-14,
+        "passed": true
+      },
+      {
+        "sampler": "heun",
+        "schedule": "karras",
+        "clip_sample": false,
+        "nfe": 19,
+        "max_step_abs_error": 0.0,
+        "max_final_abs_error": 0.0,
+        "final_mse": 0.0,
+        "passed": true
+      },
+      {
+        "sampler": "dpmpp_2m",
+        "schedule": "log_sigma",
+        "clip_sample": true,
+        "nfe": 19,
+        "max_step_abs_error": 1.6689300537109375e-06,
+        "max_final_abs_error": 1.5869736671447754e-06,
+        "final_mse": 8.315470165741468e-14,
+        "passed": true
+      },
+      {
+        "sampler": "heun",
+        "schedule": "log_sigma",
+        "clip_sample": true,
+        "nfe": 19,
+        "max_step_abs_error": 0.0,
+        "max_final_abs_error": 0.0,
+        "final_mse": 0.0,
+        "passed": true
+      }
+    ],
+    "passed": true
+  }
+}

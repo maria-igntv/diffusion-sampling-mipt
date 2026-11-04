@@ -1,4 +1,4 @@
-"""Measured DDIM generation, crash-safe batches and strict resume validation."""
+"""Measured sampling, crash-safe batches and strict resume validation."""
 
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -13,7 +13,8 @@ import torch
 from .images import export_images
 from .noise import ensure_noise
 from .runtime import configure_runtime, environment, select_device, synchronize
-from .sampling import sample_ddim
+from .sampling import sample_configured
+from .schedules import expected_nfe
 from .storage import object_sha256, read_json, save_tensor_file, tensor_sha256, write_json
 
 
@@ -54,7 +55,7 @@ def load_shards(output, manifest):
             raise ValueError(f"Invalid samples shape/dtype: {path}")
         if not torch.isfinite(samples).all() or tensor_sha256(samples) != shard["samples_sha256"]:
             raise ValueError(f"Samples checksum mismatch or nonfinite values: {path}")
-        if shard["nfe"] != config["num_steps"] or not math.isfinite(shard["seconds"]) or shard["seconds"] <= 0:
+        if shard["nfe"] != expected_nfe(config["sampler"], config["num_steps"]) or not math.isfinite(shard["seconds"]) or shard["seconds"] <= 0:
             raise ValueError(f"Invalid measured metrics: {path}")
         shards.append(shard)
         next_start = expected_end
@@ -67,6 +68,9 @@ def summarize(output, manifest, shards):
     sample_evaluations = sum(shard["nfe"] * (shard["end"] - shard["start"]) for shard in shards)
     summary = {
         "experiment_id": manifest["experiment_id"], "purpose": manifest["config"]["purpose"],
+        "sampler": manifest["config"]["sampler"], "schedule": manifest["config"].get("schedule", "native"),
+        "num_inference_points": manifest["config"]["num_steps"],
+        "expected_nfe": expected_nfe(manifest["config"]["sampler"], manifest["config"]["num_steps"]),
         "generation_complete": generated == manifest["config"]["num_samples"],
         "generated_images": generated, "requested_images": manifest["config"]["num_samples"],
         "generation_seconds": seconds,
@@ -130,6 +134,8 @@ def run_experiment(config, root=".", local_files_only=False, max_batches=None, m
                         "created_at_utc": datetime.now(timezone.utc).isoformat()}
             write_json(manifest_path, manifest)
             write_json(output / "model_contract.json", contract)
+            if "sampling_plan" in contract:
+                write_json(output / "sampling_plan.json", contract["sampling_plan"])
 
         shards = load_shards(output, manifest)
         start = shards[-1]["end"] if shards else 0
@@ -144,7 +150,7 @@ def run_experiment(config, root=".", local_files_only=False, max_batches=None, m
                     raise ValueError("Loaded checkpoint/scheduler differs from the saved run")
             warmup = noise[start:min(start + config.batch_size, config.num_samples)].to(device=device, dtype=dtype)
             for _ in range(config.warmup_batches):
-                sample_ddim(model, scheduler, warmup, config.num_steps)
+                sample_configured(model, scheduler, warmup, config)
             synchronize(device)
             del warmup
 
@@ -157,7 +163,7 @@ def run_experiment(config, root=".", local_files_only=False, max_batches=None, m
                 if device.type == "cuda":
                     torch.cuda.reset_peak_memory_stats(device)
                 began = time.perf_counter()
-                samples, nfe = sample_ddim(model, scheduler, initial, config.num_steps)
+                samples, nfe = sample_configured(model, scheduler, initial, config)
                 synchronize(device)
                 seconds = time.perf_counter() - began
                 peak = torch.cuda.max_memory_allocated(device) if device.type == "cuda" else 0
