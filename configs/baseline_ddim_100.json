@@ -1,0 +1,10 @@
+{
+  "num_steps": 100,
+  "num_samples": 5000,
+  "batch_size": 64,
+  "noise_seed": 50000,
+  "noise_path": "data/noise/fid.pt",
+  "output_dir": "results/baseline_ddim_100",
+  "purpose": "baseline",
+  "device": "cuda"
+}

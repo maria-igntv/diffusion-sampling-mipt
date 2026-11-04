@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mipt-diffusion-sampling"
+version = "0.1.0"
+description = "Reproducible CIFAR-10 diffusion sampling experiments"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.6,<3",
+    "torchvision>=0.21,<1",
+    "diffusers==0.35.2",
+    "huggingface-hub>=0.34,<3",
+    "torch-fidelity==0.3.0",
+    "numpy>=1.26,<3",
+    "Pillow>=10,<13",
+    "scipy>=1.11,<2",
+]
+
+[project.scripts]
+diffusion-sampling = "diffusion_sampling.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

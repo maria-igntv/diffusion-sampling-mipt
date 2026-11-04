@@ -1,0 +1,13 @@
+.venv/
+.cache/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+data/
+results/
+dist/
+.DS_Store
+.idea/
+# Original local course handouts are not part of the source distribution.
+/РК 1. *.docx
