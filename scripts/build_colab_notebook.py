@@ -28,8 +28,9 @@ def main():
 
 Архивы будут скачиваться через браузер на ваш компьютер, обычно в папку «Загрузки».
 Разрешите несколько скачиваний для Colab, если браузер запросит это. Python может
-запросить скачивание. Проверяйте сохранение через список загрузок браузера. Все ZIP
-остаются в Drive. В конце есть ячейка повторного скачивания выбранного архива.
+запросить скачивание. Проверяйте сохранение через список загрузок браузера.
+Рабочая папка /content временная, поэтому сохраняйте промежуточные ZIP на компьютер.
+В конце есть ячейка повторного скачивания выбранного архива.
 """),
         code("""
 import os
@@ -43,33 +44,36 @@ print('VRAM, GiB:', torch.cuda.get_device_properties(0).total_memory / 2**30)
 assert 'T4' in GPU_NAME, 'Для этого эксперимента выберите T4, чтобы не смешивать устройства'
 """),
         markdown("""
-## Загрузить исходники и подключить Drive
+## Загрузить архив с компьютера в Colab
 
-Выберите свежий архив **diffusion-sampling-colab.zip**, предоставленный вместе с
-этим ноутбуком. Он содержит исходники, а не веса или датасет. Сырые результаты,
-кэш и резервные ZIP сохраняются в Drive для продолжения после отключения.
+Нажмите «Выбрать файлы» и выберите архив на компьютере. Его исходный путь на Mac
+`/Users/maria.ignatova/mipt-hw/lm-in-cv-mipt/dist/diffusion-sampling-colab.zip`.
+Если вы скачали его из чата, выберите файл из папки «Загрузки».
+
+В Colab архив сохраняется как /content/diffusion-sampling-colab.zip, проект
+распаковывается в /content/diffusion-sampling. Рабочие данные и ZIP хранятся
+в этой папке до завершения сессии. Сохраняйте скачанные архивы на компьютере.
 """),
         code("""
-from google.colab import drive, files
+from google.colab import files
 from pathlib import Path
 from zipfile import ZipFile
-drive.mount('/content/drive')
 uploaded = files.upload()
+assert len(uploaded) == 1, 'Выберите один ZIP с исходниками проекта'
+uploaded_name, archive_bytes = next(iter(uploaded.items()))
 SOURCE_BUNDLE = Path('/content/diffusion-sampling-colab.zip')
-assert SOURCE_BUNDLE.name in uploaded, f'Выберите {SOURCE_BUNDLE.name}'
+SOURCE_BUNDLE.write_bytes(archive_bytes)
 with ZipFile(SOURCE_BUNDLE) as bundle:
     for member in bundle.infolist():
         assert (Path('/content') / member.filename).resolve().is_relative_to(Path('/content'))
     bundle.extractall('/content')
 PROJECT = Path('/content/diffusion-sampling')
-PERSISTENT = Path('/content/drive/MyDrive/llm-in-cv/diffusion-sampling')
-PERSISTENT.mkdir(parents=True, exist_ok=True)
+assert (PROJECT / 'pyproject.toml').is_file(), 'В ZIP должна быть папка diffusion-sampling с pyproject.toml'
 for name in ['data', 'results', '.cache']:
-    target = PERSISTENT / name
-    target.mkdir(exist_ok=True)
-    if not (PROJECT / name).exists():
-        (PROJECT / name).symlink_to(target, target_is_directory=True)
-print('Постоянные данные:', PERSISTENT)
+    (PROJECT / name).mkdir(exist_ok=True)
+print('Выбран файл', uploaded_name)
+print('Архив в Colab', SOURCE_BUNDLE)
+print('Рабочая папка', PROJECT)
 """),
         code("""
 %pip install -q -e /content/diffusion-sampling
@@ -89,7 +93,7 @@ Seed первого изображения — 50000, дальше отдель�
 Если GPU-памяти не хватает, до нового запуска измените BATCH_SIZE на 32 и RUN_TAG,
 например добавьте _bs32. Уже начатый запуск не продолжайте с другими параметрами.
 После обновления исходников тоже используйте новый RUN_TAG. Для продолжения
-прерванного запуска сохраните те же исходники, RUN_TAG и параметры.
+выполнения в той же сессии сохраните те же исходники, RUN_TAG и параметры.
 """),
         code("""
 from dataclasses import replace
@@ -143,7 +147,7 @@ def download_archive(path):
         return
     path = Path(path)
     print(f'Архив готов: {path.name} ({path.stat().st_size / 2**20:.1f} MiB)')
-    print('Копия в Drive:', path)
+    print('Архив в рабочей папке Colab', path)
     if AUTO_DOWNLOAD:
         try:
             files.download(str(path))
@@ -196,7 +200,7 @@ tests.check_returncode()
 
 Шумы создаются на CPU и сохраняются как тензоры. Перед длинным запуском скачиваем
 точные банки debug и fid вместе с исходниками. Это нужно для воспроизводимости,
-при продолжении в новой сессии. Архив содержит выбранные начальные шумы и исходники.
+и последующего воспроизведения. Архив содержит выбранные начальные шумы и исходники.
 """),
         code("""
 cli('prepare-noise', '--fid-count', '5000')
@@ -238,9 +242,9 @@ download_archive(exporter.delta(BASELINE_DIR))
 
 При batch size 64 скачивания запрашиваются на отметках 1024, 2048, 3072, 4096,
 5000. Каждый delta ZIP содержит новые батчи, PNG, актуальные метрики и preview;
-начальные шумы уже скачаны отдельно. При продолжении индекс не отправляет
-повторно уже архивированные диапазоны. Все архивы доступны в Drive, даже если
-браузер заблокировал очередное скачивание.
+начальные шумы уже скачаны отдельно. Индекс позволяет продолжать архивирование
+с последнего сохранённого диапазона в текущей сессии. Через последнюю ячейку
+можно повторно скачать ZIP из рабочей папки Colab.
 
 Архивация выполняется между батчами и не включается во время денойзинга.
 Если экспорт завершится ошибкой, уже сгенерированные батчи останутся сохранены.
