@@ -93,9 +93,12 @@ def summarize(output, manifest, shards):
     return summary
 
 
-def run_experiment(config, root=".", local_files_only=False, max_batches=None, model_loader=None):
+def run_experiment(config, root=".", local_files_only=False, max_batches=None, model_loader=None,
+                   on_checkpoint=None, checkpoint_every_batches=16):
     if max_batches is not None and max_batches <= 0:
         raise ValueError("max_batches must be positive")
+    if type(checkpoint_every_batches) is not int or checkpoint_every_batches <= 0:
+        raise ValueError("checkpoint_every_batches must be a positive integer")
     root = Path(root).resolve()
     output = root / config.output_dir
     configure_runtime(config.cpu_threads)
@@ -139,7 +142,11 @@ def run_experiment(config, root=".", local_files_only=False, max_batches=None, m
 
         shards = load_shards(output, manifest)
         start = shards[-1]["end"] if shards else 0
-        summarize(output, manifest, shards)
+        summary = summarize(output, manifest, shards)
+        if on_checkpoint is not None and shards:
+            # Catch up on committed batches after a disconnected notebook. A
+            # stateful exporter can skip ranges it has already archived.
+            on_checkpoint(output, manifest, tuple(shards), summary)
         if start < config.num_samples:
             if model is None:
                 if model_loader is None:
@@ -177,9 +184,15 @@ def run_experiment(config, root=".", local_files_only=False, max_batches=None, m
                 }
                 save_tensor_file(output / "batches" / f"{offset:08d}.pt", shard)
                 shards.append(shard)
-                summarize(output, manifest, shards)
+                summary = summarize(output, manifest, shards)
                 print(f"Generated {end}/{config.num_samples}; {seconds:.3f}s/batch; NFE={nfe}", flush=True)
                 del initial
+                if on_checkpoint is not None and (
+                    len(shards) == 1 or len(shards) % checkpoint_every_batches == 0 or end == config.num_samples
+                ):
+                    # Files/archives/download requests happen AFTER the timed
+                    # denoising segment and AFTER the batch is committed.
+                    on_checkpoint(output, manifest, tuple(shards), summary)
 
         # PNGs are derived from committed tensors, so interruption during export is recoverable.
         export_images(shards, output)
