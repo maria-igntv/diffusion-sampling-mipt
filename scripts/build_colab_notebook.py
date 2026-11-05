@@ -26,11 +26,12 @@ def main():
 Используйте новую сессию; после смены версии исходников перезапустите среду.
 Выполняйте ячейки по порядку. Сначала pilot и один полный батч, затем длинный запуск.
 
-Архивы будут скачиваться через браузер на ваш компьютер, обычно в папку «Загрузки».
-Разрешите несколько скачиваний для Colab, если браузер запросит это. Python может
-запросить скачивание. Проверяйте сохранение через список загрузок браузера.
+Перед генерацией появится панель ссылок на архивы. Оставьте её открытой.
+Новые ZIP появляются в ней автоматически и скачиваются через фоновый HTTP-сервер.
+Разрешите несколько скачиваний для Colab, если браузер запросит это.
+Проверяйте сохранение через список загрузок браузера.
 Рабочая папка /content временная, поэтому сохраняйте промежуточные ZIP на компьютер.
-В конце есть ячейка повторного скачивания выбранного архива.
+У каждого архива есть кнопка «Скачать». В конце можно повторно открыть панель.
 """),
         code("""
 import os
@@ -122,6 +123,27 @@ exporter = CheckpointExporter(PROJECT, EXPORT_DIR, source_bundle=SOURCE_BUNDLE)
 print(json.dumps(baseline_config.to_dict(), indent=2, ensure_ascii=False))
 print('Параметр eta зафиксирован в реализации:', 0)
 """),
+        markdown("""
+## Открыть панель скачивания перед генерацией
+
+Дождитесь появления таблицы архивов, затем запускайте следующие ячейки.
+Панель обновляется каждые 5 секунд. Фоновый сервер отдаёт ZIP во время генерации.
+При AUTO_DOWNLOAD=True панель запрашивает скачивание новых файлов.
+Для уже существующих файлов нажмите «Скачать» вручную.
+Если браузер блокирует автоматические загрузки, используйте кнопки в таблице.
+
+Запасной способ — левая панель «Файлы», папка results/exports/RUN_TAG,
+меню ⋮ у ZIP и «Скачать» после завершения выполняющейся ячейки.
+"""),
+        code("""
+if str(PROJECT / 'scripts') not in sys.path:
+    sys.path.insert(0, str(PROJECT / 'scripts'))
+from colab_downloads import start_download_server
+if 'download_server' in globals():
+    download_server.shutdown()
+    download_server.server_close()
+download_server = start_download_server(EXPORT_DIR, auto_download=AUTO_DOWNLOAD)
+"""),
         code("""
 import subprocess, sys, shutil, gc
 from contextlib import redirect_stdout, redirect_stderr
@@ -142,19 +164,13 @@ def cli(*args):
     if returncode:
         raise subprocess.CalledProcessError(returncode, command)
 
-def download_archive(path):
+def announce_archive(path):
     if path is None:
         return
     path = Path(path)
     print(f'Архив готов: {path.name} ({path.stat().st_size / 2**20:.1f} MiB)')
     print('Архив в рабочей папке Colab', path)
-    if AUTO_DOWNLOAD:
-        try:
-            files.download(str(path))
-            print('Запрос скачивания отправлен браузеру. Проверьте папку загрузок.')
-        except Exception as error:
-            print('Не удалось запросить скачивание:', error)
-            print('Генерация продолжится; архив можно скачать повторно в последней ячейке.')
+    print('Ссылка появится в панели скачивания в течение 5 секунд.')
 
 class Tee:
     def __init__(self, first, second):
@@ -176,7 +192,7 @@ def copy_generation_log(run_dir):
 
 def checkpoint(run_dir, manifest, shards, summary):
     copy_generation_log(run_dir)
-    download_archive(exporter.delta(run_dir, manifest, shards, summary))
+    announce_archive(exporter.delta(run_dir, manifest, shards, summary))
 
 def run_logged(config, **kwargs):
     run_dir = PROJECT / config.output_dir
@@ -207,7 +223,7 @@ cli('prepare-noise', '--fid-count', '5000')
 noise_archive = export_noise_banks(PROJECT,
     EXPORT_DIR / f'initial_noises_{RUN_TAG}_{uuid4().hex[:8]}.zip',
     [pilot_config.noise_path, baseline_config.noise_path], source_bundle=SOURCE_BUNDLE)
-download_archive(noise_archive)
+announce_archive(noise_archive)
 """),
         markdown("""
 ## Pilot и его первый локальный архив
@@ -219,7 +235,7 @@ Pilot проверяет загрузку модели, генерацию и э
         code("""
 pilot_summary = run_logged(pilot_config)
 display(Image(filename=str(PILOT_DIR / 'preview.png')))
-download_archive(exporter.full(PILOT_DIR, stage='pilot'))
+announce_archive(exporter.full(PILOT_DIR, stage='pilot'))
 """),
         markdown("""
 ## Первый полный батч baseline
@@ -235,16 +251,16 @@ print(json.dumps(summary, indent=2, ensure_ascii=False))
 remaining = summary['requested_images'] - summary['generated_images']
 print('Примерно осталось часов денойзинга:', remaining * summary['seconds_per_image'] / 3600)
 display(Image(filename=str(BASELINE_DIR / 'preview.png')))
-download_archive(exporter.delta(BASELINE_DIR))
+announce_archive(exporter.delta(BASELINE_DIR))
 """),
         markdown("""
 ## Продолжить до 5000 с промежуточными скачиваниями
 
-При batch size 64 скачивания запрашиваются на отметках 1024, 2048, 3072, 4096,
+При batch size 64 новые архивы появляются в панели на отметках 1024, 2048, 3072, 4096,
 5000. Каждый delta ZIP содержит новые батчи, PNG, актуальные метрики и preview;
 начальные шумы уже скачаны отдельно. Индекс позволяет продолжать архивирование
-с последнего сохранённого диапазона в текущей сессии. Через последнюю ячейку
-можно повторно скачать ZIP из рабочей папки Colab.
+с последнего сохранённого диапазона в текущей сессии. Панель перед генерацией
+позволяет скачать любой готовый ZIP. Через последнюю ячейку её можно открыть снова.
 
 Архивация выполняется между батчами и не включается во время денойзинга.
 Если экспорт завершится ошибкой, уже сгенерированные батчи останутся сохранены.
@@ -302,25 +318,19 @@ for name in ['setup.log', 'tests.log']:
     if (EXPORT_DIR / name).exists():
         shutil.copyfile(EXPORT_DIR / name, logs / name)
 final_archive = exporter.full(BASELINE_DIR, stage='final_fid')
-download_archive(final_archive)
+announce_archive(final_archive)
 print('Финальный архив:', final_archive.name)
 """),
         markdown("""
-## Повторно скачать любой архив
+## Повторно открыть панель скачивания
 
-Поставьте REPEAT_DOWNLOAD=True, если скачивание было заблокировано или прервалось.
-По умолчанию выбирается последний созданный ZIP. Для другого файла впишите
-его имя в ARCHIVE_NAME. Сохраните промежуточные ZIP до проверки финального.
+Нажмите «Скачать» рядом с нужным архивом. Для сохранения финального результата
+выберите *_full_final_fid_*.zip. Проверьте завершение скачивания в браузере.
+Сохраните промежуточные ZIP до проверки финального.
 """),
         code("""
-archives = sorted(EXPORT_DIR.glob('*.zip'), key=lambda path: path.stat().st_mtime)
-for path in archives:
-    print(path.name, f'{path.stat().st_size / 2**20:.1f} MiB')
-ARCHIVE_NAME = ''  # Имя из списка; пустая строка — последний архив.
-REPEAT_DOWNLOAD = False  # Измените на True только для повторного скачивания.
-if REPEAT_DOWNLOAD and archives:
-    chosen = EXPORT_DIR / ARCHIVE_NAME if ARCHIVE_NAME else archives[-1]
-    files.download(str(chosen))
+from google.colab import output
+output.serve_kernel_port_as_iframe(download_server.server_port, height=420)
 """),
         markdown("""
 ## Что получено для РК 1
